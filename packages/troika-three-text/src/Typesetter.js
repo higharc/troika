@@ -203,7 +203,7 @@ export function createTypesetter(resolveFonts, bidi) {
       let caretPositions = null
       let visibleBounds = null
       let chunkedBounds = null
-      let maxLineWidth = 0
+      let maxLineWidth = hasMaxWidth ? maxWidth : 0
       let renderableGlyphCount = 0
       let canWrap = whiteSpace !== 'nowrap'
       const metricsByFont = new Map() // fontObj -> metrics
