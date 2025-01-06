@@ -308,16 +308,16 @@ function parserFactory(Typr, woff2otf) {
     const os2 = typrFont['OS/2']
     const hhea = typrFont.hhea
     const unitsPerEm = typrFont.head.unitsPerEm
-    const ascender = firstNum(os2 && os2.sTypoAscender, hhea && hhea.ascender, unitsPerEm)
+    const ascender = firstNum(hhea && hhea.ascender, os2 && os2.sTypoAscender, unitsPerEm)
 
     /** @type ParsedFont */
     const fontObj = {
       unitsPerEm,
       ascender,
-      descender: firstNum(os2 && os2.sTypoDescender, hhea && hhea.descender, 0),
+      descender: firstNum(hhea && hhea.descender, os2 && os2.sTypoDescender, 0),
       capHeight: firstNum(os2 && os2.sCapHeight, ascender),
       xHeight: firstNum(os2 && os2.sxHeight, ascender),
-      lineGap: firstNum(os2 && os2.sTypoLineGap, hhea && hhea.lineGap),
+      lineGap: firstNum(hhea && hhea.lineGap, os2 && os2.sTypoLineGap),
       supportsCodePoint(code) {
         return Typr.U.codeToGlyph(typrFont, code) > 0
       },
