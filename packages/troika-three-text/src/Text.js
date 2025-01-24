@@ -398,6 +398,12 @@ class Text extends Mesh {
      */
     this.gpuAccelerateSDF = true
 
+
+    /**
+     * Higharc API: Allows us to render outlines with a default material while highlighting the text.
+     */
+    this.forceDefaultMaterialForOutlines = true
+
     this.debugSDF = false
   }
 
@@ -539,14 +545,18 @@ class Text extends Mesh {
     if (this.hasOutline()) {
       let outlineMaterial = derivedMaterial._outlineMtl
       if (!outlineMaterial) {
-        outlineMaterial = derivedMaterial._outlineMtl = Object.create(derivedMaterial, {
+        let outlineBaseMaterial = derivedMaterial;
+        if (this.forceDefaultMaterialForOutlines) {
+          outlineBaseMaterial = createTextDerivedMaterial(this._defaultMaterial || (this._defaultMaterial = defaultMaterial.clone()));
+        }
+        outlineMaterial = derivedMaterial._outlineMtl = Object.create(outlineBaseMaterial, {
           id: {value: derivedMaterial.id + 0.1}
         })
         outlineMaterial.isTextOutlineMaterial = true
         outlineMaterial.depthWrite = false
         outlineMaterial.map = null //???
-        derivedMaterial.addEventListener('dispose', function onDispose() {
-          derivedMaterial.removeEventListener('dispose', onDispose)
+        outlineBaseMaterial.addEventListener('dispose', function onDispose() {
+          outlineBaseMaterial.removeEventListener('dispose', onDispose);
           outlineMaterial.dispose()
         })
       }
