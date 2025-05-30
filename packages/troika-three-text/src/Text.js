@@ -504,6 +504,7 @@ class Text extends Mesh {
    */
   dispose() {
     this.geometry.dispose()
+    super.dispose();
   }
 
   /**
