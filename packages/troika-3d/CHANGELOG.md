@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.53.0](https://github.com/protectwise/troika/compare/v0.52.4...v0.53.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* adjust to renamed Object3D.DEFAULT_UP ([1ba96a5](https://github.com/protectwise/troika/commit/1ba96a57f1fcd0974b989a37a12ee7a86906fe0e))
+* **InstancingDerivedMaterial:** Replace deprecated transposeMat3 with webgl2 native transpose. ([#386](https://github.com/protectwise/troika/issues/386)) ([5e5b9c0](https://github.com/protectwise/troika/commit/5e5b9c0aaf3b1b196d19b9bfc6858f12a5cec02d))
+
+
+
+
+
+## [0.52.4](https://github.com/protectwise/troika/compare/v0.52.3...v0.52.4) (2025-04-02)
+
+
+### Bug Fixes
+
+* error in Three r175 with custom(Depth|Distance)Material not having setters ([78e00b5](https://github.com/protectwise/troika/commit/78e00b512eb9618623d248070ba75ea0c55803ee)), closes [#357](https://github.com/protectwise/troika/issues/357)
+
+
+
+
+
 # [0.52.0](https://github.com/protectwise/troika/compare/v0.51.1...v0.52.0) (2024-11-11)
 
 **Note:** Version bump only for package troika-3d

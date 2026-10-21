@@ -3,6 +3,40 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.53.0](https://github.com/protectwise/troika/compare/v0.52.4...v0.53.0) (2026-07-24)
+
+
+### Bug Fixes
+
+* Add .js to imports in BatchedText ([#356](https://github.com/protectwise/troika/issues/356)) ([028b81c](https://github.com/protectwise/troika/commit/028b81cf308f0f22e5aa8e78196be56ec1997af5))
+* adjust to renamed Object3D.DEFAULT_UP ([1ba96a5](https://github.com/protectwise/troika/commit/1ba96a57f1fcd0974b989a37a12ee7a86906fe0e))
+* avoid inout params in vertex transform for Safari/ANGLE Metal ([bb05826](https://github.com/protectwise/troika/commit/bb058269ba136558f4381cf3d71da28300fc66ab)), closes [#390](https://github.com/protectwise/troika/issues/390)
+* BatchedText not rendering due to empty drawRange ([f29e40e](https://github.com/protectwise/troika/commit/f29e40e9f7ea3524f4659c4510bbcc51f8aa13a7))
+* error passing string array to resolveFonts ([569346f](https://github.com/protectwise/troika/commit/569346f3a17bd2c5cd9ec1c0bfb3c347586a9258))
+* **BatchedText:** Correct color rendering with Three.js Color Management ([b6565f4](https://github.com/protectwise/troika/commit/b6565f436e09dc461633e885b36a2b81f5ee37e3))
+* **InstancingDerivedMaterial:** Replace deprecated transposeMat3 with webgl2 native transpose. ([#386](https://github.com/protectwise/troika/issues/386)) ([5e5b9c0](https://github.com/protectwise/troika/commit/5e5b9c0aaf3b1b196d19b9bfc6858f12a5cec02d))
+* **troika-three-text:** Add a lang option to preloadFont. ([#368](https://github.com/protectwise/troika/issues/368)) ([82622e5](https://github.com/protectwise/troika/commit/82622e543c7f28831e8e87111bda7479c1d419a1))
+
+
+### Features
+
+* **troika-three-text:** add styleRanges for inline font/color/size/valign control ([bca98dd](https://github.com/protectwise/troika/commit/bca98dddeb3602b04d5452602e7da32df2fafe06))
+
+
+
+
+
+## [0.52.4](https://github.com/protectwise/troika/compare/v0.52.3...v0.52.4) (2025-04-02)
+
+
+### Bug Fixes
+
+* error in Three r175 with custom(Depth|Distance)Material not having setters ([78e00b5](https://github.com/protectwise/troika/commit/78e00b512eb9618623d248070ba75ea0c55803ee)), closes [#357](https://github.com/protectwise/troika/issues/357)
+
+
+
+
+
 ## [0.52.3](https://github.com/protectwise/troika/compare/v0.52.2...v0.52.3) (2024-12-19)
 
 

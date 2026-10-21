@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.53.0](https://github.com/protectwise/troika/compare/v0.52.4...v0.53.0) (2026-07-24)
+
+
+### Features
+
+* **troika-three-text:** add styleRanges for inline font/color/size/valign control ([bca98dd](https://github.com/protectwise/troika/commit/bca98dddeb3602b04d5452602e7da32df2fafe06))
+
+
+
+
+
+## [0.52.4](https://github.com/protectwise/troika/compare/v0.52.3...v0.52.4) (2025-04-02)
+
+
+### Bug Fixes
+
+* error in Three r175 with custom(Depth|Distance)Material not having setters ([78e00b5](https://github.com/protectwise/troika/commit/78e00b512eb9618623d248070ba75ea0c55803ee)), closes [#357](https://github.com/protectwise/troika/issues/357)
+
+
+
+
+
 ## [0.52.3](https://github.com/protectwise/troika/compare/v0.52.2...v0.52.3) (2024-12-19)
 
 **Note:** Version bump only for package troika-3d-ui

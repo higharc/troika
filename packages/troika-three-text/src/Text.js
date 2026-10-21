@@ -68,7 +68,7 @@ const SYNCABLE_PROPS = [
   'whiteSpace',
   'anchorX',
   'anchorY',
-  'colorRanges',
+  'styleRanges',
   'sdfGlyphSize'
 ]
 
@@ -247,15 +247,14 @@ class Text extends Mesh {
     this.color = null
 
     /**
-     * @member {object|null} colorRanges
-     * WARNING: This API is experimental and may change.
-     * This allows more fine-grained control of colors for individual or ranges of characters,
-     * taking precedence over the material's `color`. Its format is an Object whose keys each
-     * define a starting character index for a range, and whose values are the color for each
-     * range. The color value can be a numeric hex color value, a `THREE.Color` object, or
-     * any of the strings accepted by `THREE.Color`.
+     * @member {object|null} styleRanges
+     * Enables rich-text rendering: keys are starting character indices; values are style objects
+     * applied from that index until the next key override. Supported style properties: `font`
+     * (URL string), `color` (hex/Color/string), `size` (world-unit font size), `valign` (numeric
+     * world-unit Y offset from baseline). Set any property to `null` to
+     * reset it to the text-level default at that character index.
      */
-    this.colorRanges = null
+    this.styleRanges = null
 
     /**
      * @member {number|string} outlineWidth
@@ -423,7 +422,6 @@ class Text extends Mesh {
       } else {
         this._isSyncing = true
         this.dispatchEvent(syncStartEvent)
-
         getTextRenderInfo({
           text: this.text,
           font: this.font,
@@ -441,7 +439,8 @@ class Text extends Mesh {
           overflowWrap: this.overflowWrap,
           anchorX: this.anchorX,
           anchorY: this.anchorY,
-          colorRanges: this.colorRanges,
+          color: this.color,
+          styleRanges: this.styleRanges, // TODO sanitize
           includeCaretPositions: true, //TODO parameterize
           sdfGlyphSize: this.sdfGlyphSize,
           gpuAccelerateSDF: this.gpuAccelerateSDF,
@@ -526,17 +525,35 @@ class Text extends Mesh {
     return createTextDerivedMaterial(baseMaterial)
   }
 
+  /** Create the renderer-specific default base material. */
+  createDefaultMaterial() {
+    return defaultMaterial.clone()
+  }
+
+  /** Create the outline pass independently of custom fill shading when requested. */
+  createOutlineMaterial(derivedMaterial) {
+    const base = this.forceDefaultMaterialForOutlines
+      ? this.createDerivedMaterial(this._defaultMaterial || (this._defaultMaterial = this.createDefaultMaterial()))
+      : derivedMaterial
+    return Object.create(base, {id: {value: derivedMaterial.id + 0.1}})
+  }
+
   // Handler for automatically wrapping the base material with our upgrades. We do the wrapping
   // lazily on _read_ rather than write to avoid unnecessary wrapping on transient values.
   get material() {
     let derivedMaterial = this._derivedMaterial
-    const baseMaterial = this._baseMaterial || this._defaultMaterial || (this._defaultMaterial = defaultMaterial.clone())
+    const baseMaterial = this._baseMaterial || this._defaultMaterial || (this._defaultMaterial = this.createDefaultMaterial())
     if (!derivedMaterial || !derivedMaterial.isDerivedFrom(baseMaterial)) {
       derivedMaterial = this._derivedMaterial = this.createDerivedMaterial(baseMaterial)
       // dispose the derived material when its base material is disposed:
-      baseMaterial.addEventListener('dispose', function onDispose() {
+      const onDispose = function () {
         baseMaterial.removeEventListener('dispose', onDispose)
         derivedMaterial.dispose()
+      }
+      baseMaterial.addEventListener('dispose', onDispose)
+      derivedMaterial.addEventListener('dispose', function removeBaseListener() {
+        baseMaterial.removeEventListener('dispose', onDispose)
+        derivedMaterial.removeEventListener('dispose', removeBaseListener)
       })
     }
     // If text outline is configured, render it as a preliminary draw using Three's multi-material
@@ -546,18 +563,12 @@ class Text extends Mesh {
     if (this.hasOutline()) {
       let outlineMaterial = derivedMaterial._outlineMtl
       if (!outlineMaterial) {
-        let outlineBaseMaterial = derivedMaterial;
-        if (this.forceDefaultMaterialForOutlines) {
-          outlineBaseMaterial = createTextDerivedMaterial(this._defaultMaterial || (this._defaultMaterial = defaultMaterial.clone()));
-        }
-        outlineMaterial = derivedMaterial._outlineMtl = Object.create(outlineBaseMaterial, {
-          id: {value: derivedMaterial.id + 0.1}
-        })
+        outlineMaterial = derivedMaterial._outlineMtl = this.createOutlineMaterial(derivedMaterial)
         outlineMaterial.isTextOutlineMaterial = true
         outlineMaterial.depthWrite = false
         outlineMaterial.map = null //???
-        outlineBaseMaterial.addEventListener('dispose', function onDispose() {
-          outlineBaseMaterial.removeEventListener('dispose', onDispose);
+        derivedMaterial.addEventListener('dispose', function onDispose() {
+          derivedMaterial.removeEventListener('dispose', onDispose)
           outlineMaterial.dispose()
         })
       }
@@ -600,8 +611,14 @@ class Text extends Mesh {
   get customDepthMaterial() {
     return first(this.material).getDepthMaterial()
   }
+  set customDepthMaterial(m) {
+    // future: let the user override with their own?
+  }
   get customDistanceMaterial() {
     return first(this.material).getDistanceMaterial()
+  }
+  set customDistanceMaterial(m) {
+    // future: let the user override with their own?
   }
 
   _prepareForRender(material) {
@@ -648,7 +665,7 @@ class Text extends Mesh {
       uniforms.uTroikaPositionOffset.value.set(offsetX, offsetY)
       uniforms.uTroikaBlurRadius.value = blurRadius
       uniforms.uTroikaStrokeWidth.value = strokeWidth
-      uniforms.uTroikaStrokeOpacity.value = strokeOpacity
+      uniforms.uTroikaStrokeOpacity.value = strokeOpacity || 0
       uniforms.uTroikaFillOpacity.value = fillOpacity == null ? 1 : fillOpacity
       uniforms.uTroikaCurveRadius.value = this.curveRadius || 0
 

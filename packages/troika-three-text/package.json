@@ -1,6 +1,6 @@
 {
   "name": "troika-three-text",
-  "version": "0.52.3-higharc.2",
+  "version": "0.53.0-higharc.0",
   "description": "SDF-based text rendering for Three.js",
   "author": "Jason Johnston <jason.johnston@protectwise.com>",
   "repository": {
@@ -13,10 +13,22 @@
   "main": "dist/troika-three-text.umd.js",
   "module": "dist/troika-three-text.esm.js",
   "module:src": "src/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/troika-three-text.esm.js",
+      "require": "./dist/troika-three-text.umd.js"
+    },
+    "./webgpu": {
+      "import": "./dist/troika-three-text.webgpu.esm.js",
+      "require": "./dist/troika-three-text.webgpu.umd.js"
+    },
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
   "dependencies": {
     "bidi-js": "^1.0.2",
-    "troika-three-utils": "^0.52.0",
-    "troika-worker-utils": "^0.52.0",
+    "troika-three-utils": "^0.53.0",
+    "troika-worker-utils": "^0.53.0",
     "webgl-sdf-generator": "1.1.1"
   },
   "peerDependencies": {
@@ -29,6 +41,7 @@
     "node-fetch": "^2.6.0"
   },
   "scripts": {
+    "test:higharc": "node --test test/higharc.test.mjs",
     "build-typr": "rollup -c rollup.config.build-typr.js",
     "build-woff2otf": "rollup -c rollup.config.build-woff2otf.js",
     "build-unicode-font-resolver": "rollup -c rollup.config.build-unicode-font-resolver.js"

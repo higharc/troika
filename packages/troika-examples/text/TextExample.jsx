@@ -36,7 +36,12 @@ export const FONTS = {
   'Snowburst One': 'https://fonts.gstatic.com/s/snowburstone/v5/MQpS-WezKdujBsXY3B7I-UT7SZieOA.woff',
   'Syncopate': 'https://fonts.gstatic.com/s/syncopate/v9/pe0sMIuPIYBCpEV5eFdCBfe5.woff',
   'Wallpoet': 'https://fonts.gstatic.com/s/wallpoet/v9/f0X10em2_8RnXVVdUObp58I.woff',
-  'Sirin Stencil': 'https://fonts.gstatic.com/s/sirinstencil/v6/mem4YaWwznmLx-lzGfN7MdRyRc9MAQ.woff'
+  'Sirin Stencil': 'https://fonts.gstatic.com/s/sirinstencil/v6/mem4YaWwznmLx-lzGfN7MdRyRc9MAQ.woff',
+  // https://www.cdnfonts.com/caxton-bk-bt.font
+  'Caxton': 'https://fonts.cdnfonts.com/s/13390/CAXTON~2.woff',
+  'Caxton Bold': 'https://fonts.cdnfonts.com/s/13390/CAXTON~7.woff',
+  'Caxton Italic': 'https://fonts.cdnfonts.com/s/13390/CAXTON~3.woff',
+  'Caxton Bold Italic': 'https://fonts.cdnfonts.com/s/13390/CAXTON~6.woff'
 }
 
 const CUSTOM_LBL = '(Custom...)'
@@ -70,6 +75,8 @@ November 19, 1863`,
   'Thai': `ห้องน้ำ\nห้องนํ้า\nห้องน้ํา\nพื้นที่รับแขก\nตู้เสื้อผ้า\nและชั้นวางของ`,
 
   'Emoji': 'Examples of emoji are 😂, 😃, 🧘🏻‍♂️, 🌍, 🌦️, 🥖, 🚗, 📱, 🎉, ❤️, ✅, and 🏁.',
+
+  'Rich Text': 'This is a Rich Text example with color, font (Bold Italic), size and vertical-align variations. Font fallbacks work! 😉',
 
   // TODO fix in XR:
   [CUSTOM_LBL]: 'Edit me!'
@@ -132,6 +139,7 @@ class TextExample extends React.Component {
       outlineOpacity: 1,
       outlineBlur: 0,
       curveRadius: 0,
+      styleRanges: {},
       fog: false,
       animTextColor: true,
       animTilt: true,
@@ -140,7 +148,6 @@ class TextExample extends React.Component {
       useTexture: false,
       shadows: false,
       selectable: false,
-      colorRanges: false,
       sdfGlyphSize: 6,
       debugSDF: false
     }
@@ -150,6 +157,50 @@ class TextExample extends React.Component {
         newState.textScale = 0.5
         newState.maxWidth = 2.5
       }
+      if (newState.text === 'Rich Text' && newState.text !== this.state.text) {
+        newState.font = 'Caxton';
+        newState.fontSize = 0.17;
+        newState.color = 0x997700;
+        // EXAMPLE styleRanges test cases for TEXTS['Rich Text']
+        newState.styleRanges = {
+          // All styles: Color + Font + Size + vAlign
+          10: { color: 0xe0ce09, font: FONTS['Caxton Bold Italic'], size: 0.27, valign: .06 },
+          19: null, // reset all/any styles to default
+
+          // Color
+          33: { color: 0xEA3323 },
+          34: { color: 0xEF8632 },
+          35: { color: 0xFFFF54 },
+          36: { color: 0x54B951 },
+          37: { color: 0x2B66F6 },
+          38: { color: null },
+
+          // Font
+          40: { font: FONTS['Orbitron'] },
+          45: { font: null},
+          46: { font: FONTS['Caxton Bold'] },
+          51: { font: FONTS['Caxton Italic'] },
+          57: { font: null },
+
+          // Size
+          60: { size: 0.28 },
+          64: { size: null },
+
+          // vAlign
+          69: { valign: -.03, size: 0.1 },
+          77: { valign: null, size: null },
+          78: { valign: .05, size: 0.1 },
+          83: { valign: null, size: null },
+
+          // Font on character requiring fallback
+          117: { color: 0xe0ce09, font: FONTS['Caxton Italic']  },
+          118: { color: null, font: null },
+        }
+      } else if (newState.text && newState.text !== 'Rich Text') {
+        // switching away from Rich Text — clear style ranges
+        newState.styleRanges = {};
+      }
+
       this.setState(newState)
     }
   }
@@ -232,8 +283,9 @@ class TextExample extends React.Component {
               strokeWidth: state.strokeWidth,
               strokeColor: state.strokeColor,
               curveRadius: state.curveRadius,
+              styleRanges: state.styleRanges,
               material: material,
-              color: 0xffffff,
+              color: state.color || 0xffffff,
               scaleX: state.textScale || 1,
               scaleY: state.textScale || 1,
               scaleZ: state.textScale || 1,
@@ -247,15 +299,6 @@ class TextExample extends React.Component {
               // onMouseMove: e => {
               //   this.setState({hoverPoint: e.intersection.point})
               // },
-              colorRanges: state.colorRanges ? TEXTS[state.text].split('').reduce((out, char, i) => {
-                if (i === 0 || /\s/.test(char)) {
-                  out[i] = (Math.floor(Math.pow(Math.sin(i), 2) * 256) << 16)
-                    | (Math.floor(Math.pow(Math.sin(i + 1), 2) * 256) << 8)
-                    | (Math.floor(Math.pow(Math.sin(i + 2), 2) * 256))
-                  //out[i] = '#' + new Color(out[i]).getHexString()
-                }
-                return out
-              }, {}) : null,
               transition: {
                 scaleX: true,
                 scaleY: true,
@@ -334,7 +377,6 @@ class TextExample extends React.Component {
                 {type: 'boolean', path: "animRotate", label: "Rotate"},
                 {type: 'boolean', path: "fog", label: "Fog"},
                 {type: 'boolean', path: "shadows", label: "Shadows"},
-                {type: 'boolean', path: "colorRanges", label: "colorRanges (WIP)"},
                 {type: 'boolean', path: "selectable", label: "Selectable (WIP)"},
                 {type: 'number', path: "fontSize", label: "fontSize", min: 0.01, max: 0.2, step: 0.01},
                 {type: 'number', path: "textScale", label: "scale", min: 0.1, max: 10, step: 0.1},

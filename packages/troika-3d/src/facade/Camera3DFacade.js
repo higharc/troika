@@ -47,7 +47,7 @@ export function createCameraFacade(threeJsCameraClass, projectionProps, otherPro
       // properties so they can selectively trigger updates, be transitioned, etc.
       if (this.lookAt) {
         tempVec3.copy(this.lookAt)
-        lookAtUp.copy(this.up || Object3D.DefaultUp)
+        lookAtUp.copy(this.up || Object3D.DEFAULT_UP || Object3D.DefaultUp || new Vector3(0, 1, 0))
         tempMat4.lookAt(this.threeObject.position, tempVec3, lookAtUp)
         tempQuat.setFromRotationMatrix(tempMat4)
         this.quaternionX = tempQuat.x

@@ -130,33 +130,87 @@ function getTextRenderInfo(args, callback) {
   const { defaultFontURL } = CONFIG
   const fonts = [];
   if (defaultFontURL) {
-    fonts.push({label: 'default', src: toAbsoluteURL(defaultFontURL)})
+    fonts.push({label: 'system', src: toAbsoluteURL(defaultFontURL)})
   }
+  // add default font
   if (args.font) {
-    fonts.push({label: 'user', src: toAbsoluteURL(args.font)})
+    fonts.push({label: 'default', src: toAbsoluteURL(args.font)})
   }
-  args.font = fonts
 
   // Normalize text to a string
-  args.text = '' + args.text
+  if (typeof args.text !== 'undefined') {
+    args.text = '' + args.text
+  } else {
+    args.text = '';
+  }
 
   args.sdfGlyphSize = args.sdfGlyphSize || CONFIG.sdfGlyphSize
   args.unicodeFontsURL = args.unicodeFontsURL || CONFIG.unicodeFontsURL
 
-  // Normalize colors
-  if (args.colorRanges != null) {
-    let colors = {}
-    for (let key in args.colorRanges) {
-      if (args.colorRanges.hasOwnProperty(key)) {
-        let val = args.colorRanges[key]
+  // Handle styleRanges colors, fonts,
+  // Consolidated logic into one args.styleRanges[] loop, for preformance
+  if (args.styleRanges) {
+
+    // Build internal colorRanges from styleRanges[].color entries
+    args.colorRanges = { 0: tempColor.set(args.color).getHex() };
+
+    for (let [start, styles] of Object.entries(args.styleRanges)) {
+      // A null entry (e.g. `10: null`) resets all style properties at that index
+      // NOTE maintain full list of style properties to ensure null resets properly
+      if (styles === null) {
+        styles = { color: null, font: null, size: null, valign: null }
+        args.styleRanges[start] = styles;
+      }
+      if (styles.color !== undefined && styles.color !== null) {
+        let val = styles.color
         if (typeof val !== 'number') {
           val = tempColor.set(val).getHex()
         }
-        colors[key] = val
+        args.colorRanges[start] = val;
+      }
+      // support returning to default color
+      else if (styles.color === null) {
+        args.colorRanges[start] = tempColor.set(args.color).getHex();
+      }
+
+      // Push new font if styles font is not found
+      if (styles.font) {
+        // Update styleRanges[].font with absolute path, for fontResolver
+        const absoluteFont = toAbsoluteURL(styles.font);
+        args.styleRanges[start].font = absoluteFont;
+        if (fonts.map(f => f.src).indexOf(absoluteFont) === -1) {
+          fonts.push({label: 'style', src: absoluteFont})
+        }
+      }
+      // support returning to default font
+      else if (styles.font === null && args.font) {
+        args.styleRanges[start].font = toAbsoluteURL(args.font);
+      }
+
+      // Extract per-character font size overrides into sizeRanges for the Typesetter.
+      // null resets to the global fontSize at that index.
+      if (styles.size !== undefined && styles.size !== null) {
+        const sizeVal = +styles.size
+        if (!isNaN(sizeVal) && sizeVal > 0) {
+          if (!args.sizeRanges) args.sizeRanges = {}
+          args.sizeRanges[start] = sizeVal
+        }
+      } else if (styles.size === null) {
+        if (!args.sizeRanges) args.sizeRanges = {}
+        args.sizeRanges[start] = args.fontSize
+      }
+
+      // Extract per-character vertical alignment overrides into valignRanges.
+      // Accepts numeric world-unit Y offsets; null resets to no offset at that index.
+      if (styles.valign !== undefined) {
+        if (!args.valignRanges) args.valignRanges = {}
+        args.valignRanges[start] = styles.valign
       }
     }
-    args.colorRanges = colors
   }
+
+  // Set fonts here to support styleRanges
+  args.font = fonts
 
   Object.freeze(args)
 
@@ -193,7 +247,7 @@ function getTextRenderInfo(args, callback) {
   // Issue request to the typesetting engine in the worker
   const typeset = CONFIG.useWorker ? typesetInWorker : typesetOnMainThread
   typeset(args).then(result => {
-    const {glyphIds, glyphFontIndices, fontData, glyphPositions, fontSize, timings} = result
+    const {glyphIds, glyphFontIndices, fontData, glyphPositions, fontSize, glyphFontSizeMultipliers, timings} = result
     const neededSDFs = []
     const glyphBounds = new Float32Array(glyphIds.length * 4)
     let boundsIdx = 0
@@ -241,7 +295,8 @@ function getTextRenderInfo(args, callback) {
       const {sdfViewBox} = glyphInfo
       const posX = glyphPositions[positionsIdx++]
       const posY = glyphPositions[positionsIdx++]
-      const fontSizeMult = fontSize / unitsPerEm
+      // Use per-glyph fontSizeMult from sizeRanges when active, otherwise global fontSize / unitsPerEm.
+      const fontSizeMult = glyphFontSizeMultipliers ? glyphFontSizeMultipliers[i] : fontSize / unitsPerEm
       glyphBounds[boundsIdx++] = posX + sdfViewBox[0] * fontSizeMult
       glyphBounds[boundsIdx++] = posY + sdfViewBox[1] * fontSizeMult
       glyphBounds[boundsIdx++] = posX + sdfViewBox[2] * fontSizeMult
@@ -391,11 +446,14 @@ function initContextLossHandling(atlas) {
  *        possible glyphs, e.g. `["t", "h", "th"]` to get the "t" and "h" glyphs plus the "th" ligature.
  * @param {number} options.sdfGlyphSize - The size at which to prerender the SDF textures for the
  *        specified `characters`.
+ * @param {string} options.lang - The language code of this text; can be used for explicitly selecting
+ *        certain CJK fonts.
  * @param {function} callback - A function that will be called when the preloading is complete.
  */
-function preloadFont({font, characters, sdfGlyphSize}, callback) {
-  let text = Array.isArray(characters) ? characters.join('\n') : '' + characters
-  getTextRenderInfo({ font, sdfGlyphSize, text }, callback)
+function preloadFont({font, characters, sdfGlyphSize, lang}, callback) {
+  let text = Array.isArray(characters) ? characters.join('\n') : '' + 
+    (typeof characters === 'undefined' ? '': characters );
+  getTextRenderInfo({ font, sdfGlyphSize, text, lang }, callback)
 }
 
 
@@ -419,16 +477,41 @@ function toAbsoluteURL(path) {
   return linkEl.href
 }
 
+let atlasReadback = false
+
+/**
+ * Always upload the SDF atlas as raw pixels read back from its canvas, never the canvas itself.
+ * WebGPU needs this: copying the canvas into a GPU texture (copyExternalImageToTexture) loses the
+ * RGB channels wherever alpha is low, and the atlas packs a fourth glyph into alpha. Glyphs whose
+ * square has no fourth glyph vanish, and the rest pick up streaks at their edges.
+ *
+ * Atlases built before this is enabled (by preloadFont, say, ahead of the first WebGPUText) were
+ * uploaded from the canvas, and a later request that needs no new glyphs never re-uploads them,
+ * so they are read back here.
+ */
+export function enableSDFAtlasReadback() {
+  if (atlasReadback) return
+  atlasReadback = true
+  for (const size in atlases) {
+    const atlas = atlases[size]
+    if (atlas.glyphCount && !atlas.contextLost) {
+      safariPre15Workaround(atlas)
+      atlas.sdfTexture.needsUpdate = true
+    }
+  }
+}
+
 /**
  * Safari < v15 seems unable to use the SDF webgl canvas as a texture. This applies a workaround
  * where it reads the pixels out of that canvas and uploads them as a data texture instead, at
- * a slight performance cost.
+ * a slight performance cost. WebGPU opts into the same path (enableSDFAtlasReadback).
  */
 function safariPre15Workaround(atlas) {
   // Use createImageBitmap support as a proxy for Safari<15, all other mainstream browsers
   // have supported it for a long while so any false positives should be minimal.
-  if (typeof createImageBitmap !== 'function') {
-    console.info('Safari<15: applying SDF canvas workaround')
+  const safariPre15 = typeof createImageBitmap !== 'function'
+  if (atlasReadback || safariPre15) {
+    if (safariPre15) console.info('Safari<15: applying SDF canvas workaround')
     const {sdfCanvas, sdfTexture} = atlas
     const {width, height} = sdfCanvas
     const gl = atlas.sdfCanvas.getContext('webgl')
