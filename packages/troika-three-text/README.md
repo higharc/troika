@@ -6,6 +6,14 @@ Rather than relying on pre-generated SDF textures, this parses font files (.ttf,
 
 Once the SDFs are generated, it assembles a geometry that positions all the glyphs, and _patches_ any Three.js Material with the proper shader code for rendering the SDFs. This means you can still benefit from all the features of Three.js's built-in materials like lighting, physically-based rendering, shadows, and fog.
 
+## Display-free SDF generation (Higharc)
+
+Before the first text request, call `configureTextBuilder({sdfGenerationBackend: 'cpu'})`
+from the same entry point as `Text` (including `/webgpu`). This uses the existing JavaScript SDF
+generator and a raw RGBA `DataTexture` atlas, without creating a WebGL context. Atlas growth preserves
+all four independent glyph channels. The default remains `webgl`; `gpuAccelerateSDF: false` alone
+still uses the upstream canvas-backed atlas and is not a display-free mode.
+
 ## Demos
 
 * [With the Troika scene management framework](https://troika-examples.netlify.com/#text)

@@ -1,4 +1,5 @@
-import { Color, Texture, LinearFilter } from 'three'
+import { Color, Texture, DataTexture, LinearFilter } from 'three'
+import { CPUAtlas } from './CPUAtlas.js'
 import { defineWorkerModule } from 'troika-worker-utils'
 import { fontResolverWorkerModule } from "./FontResolver.js";
 import { createTypesetter } from './Typesetter.js'
@@ -14,6 +15,7 @@ const CONFIG = {
   sdfExponent: 9,
   textureWidth: 2048,
   useWorker: true,
+  sdfGenerationBackend: 'webgl',
 }
 const tempColor = /*#__PURE__*/new Color()
 let hasRequested = false
@@ -53,6 +55,7 @@ function now() {
  *                 2048^2, times 4 channels, allows for 4096 glyphs.) This can be increased if you need to
  *                 increase the glyph size and/or have an extraordinary number of glyphs.
  * @param {Boolean} config.useWorker - Whether to run typesetting in a web worker. Defaults to true.
+ * @param {'webgl'|'cpu'} config.sdfGenerationBackend - Use raw CPU atlas storage for display-free rendering.
  */
 function configureTextBuilder(config) {
   if (hasRequested) {
@@ -220,14 +223,19 @@ function getTextRenderInfo(args, callback) {
   const glyphsPerRow = (textureWidth / sdfGlyphSize * 4)
   let atlas = atlases[sdfGlyphSize]
   if (!atlas) {
-    const canvas = document.createElement('canvas')
-    canvas.width = textureWidth
-    canvas.height = sdfGlyphSize * 256 / glyphsPerRow // start tall enough to fit 256 glyphs
+    const height = sdfGlyphSize * 256 / glyphsPerRow // start tall enough to fit 256 glyphs
+    const cpuAtlas = CONFIG.sdfGenerationBackend === 'cpu' ? new CPUAtlas(textureWidth, height) : null
+    const canvas = cpuAtlas ? null : document.createElement('canvas')
+    if (canvas) {
+      canvas.width = textureWidth
+      canvas.height = height
+    }
     atlas = atlases[sdfGlyphSize] = {
       glyphCount: 0,
       sdfGlyphSize,
       sdfCanvas: canvas,
-      sdfTexture: new Texture(
+      cpuAtlas,
+      sdfTexture: cpuAtlas ? new DataTexture(cpuAtlas.data, textureWidth, height) : new Texture(
         canvas,
         undefined,
         undefined,
@@ -239,7 +247,10 @@ function getTextRenderInfo(args, callback) {
       glyphsByFont: new Map()
     }
     atlas.sdfTexture.generateMipmaps = false
-    initContextLossHandling(atlas)
+    atlas.sdfTexture.minFilter = atlas.sdfTexture.magFilter = LinearFilter
+    if (canvas) {
+      initContextLossHandling(atlas)
+    }
   }
 
   const {sdfTexture, sdfCanvas} = atlas
@@ -311,13 +322,18 @@ function getTextRenderInfo(args, callback) {
     timings.sdf = {}
 
     // Grow the texture height by power of 2 if needed
-    const currentHeight = sdfCanvas.height
+    const currentHeight = atlas.cpuAtlas ? atlas.cpuAtlas.height : sdfCanvas.height
     const neededRows = Math.ceil(atlas.glyphCount / glyphsPerRow)
     const neededHeight = Math.pow(2, Math.ceil(Math.log2(neededRows * sdfGlyphSize)))
     if (neededHeight > currentHeight) {
       // Since resizing the canvas clears its render buffer, it needs special handling to copy the old contents over
       console.info(`Increasing SDF texture size ${currentHeight}->${neededHeight}`)
-      resizeWebGLCanvasWithoutClearing(sdfCanvas, textureWidth, neededHeight)
+      if (atlas.cpuAtlas) {
+        atlas.cpuAtlas.grow(neededHeight)
+        sdfTexture.image = {width: textureWidth, height: neededHeight, data: atlas.cpuAtlas.data}
+      } else {
+        resizeWebGLCanvasWithoutClearing(sdfCanvas, textureWidth, neededHeight)
+      }
       // As of Three r136 textures cannot be resized once they're allocated on the GPU, we must dispose to reallocate it
       sdfTexture.dispose()
     }
@@ -363,13 +379,13 @@ function getTextRenderInfo(args, callback) {
   // "warmed up"; the first request will be the longest due to shader program compilation so this gets
   // a head start on that process before SDFs actually start getting processed.
   Promise.resolve().then(() => {
-    if (!atlas.contextLost) {
+    if (sdfCanvas && !atlas.contextLost) {
       warmUpSDFCanvas(sdfCanvas)
     }
   })
 }
 
-function generateGlyphSDF({path, atlasIndex, sdfViewBox}, {sdfGlyphSize, sdfCanvas, contextLost}, useGPU) {
+function generateGlyphSDF({path, atlasIndex, sdfViewBox}, {sdfGlyphSize, sdfCanvas, cpuAtlas, contextLost}, useGPU) {
   if (contextLost) {
     // If the context is lost there's nothing we can do, just quit silently and let it
     // get regenerated when the context is restored
@@ -381,6 +397,11 @@ function generateGlyphSDF({path, atlasIndex, sdfViewBox}, {sdfGlyphSize, sdfCanv
   const x = squareIndex % (textureWidth / sdfGlyphSize) * sdfGlyphSize
   const y = Math.floor(squareIndex / (textureWidth / sdfGlyphSize)) * sdfGlyphSize
   const channel = atlasIndex % 4
+  if (cpuAtlas) {
+    const start = now()
+    cpuAtlas.generateGlyph(sdfGlyphSize, path, sdfViewBox, maxDist, sdfExponent, x, y, channel)
+    return Promise.resolve({timing: now() - start})
+  }
   return generateSDF(sdfGlyphSize, sdfGlyphSize, path, sdfViewBox, maxDist, sdfExponent, sdfCanvas, x, y, channel, useGPU)
 }
 
@@ -507,6 +528,7 @@ export function enableSDFAtlasReadback() {
  * a slight performance cost. WebGPU opts into the same path (enableSDFAtlasReadback).
  */
 function safariPre15Workaround(atlas) {
+  if (atlas.cpuAtlas) return
   // Use createImageBitmap support as a proxy for Safari<15, all other mainstream browsers
   // have supported it for a long while so any false positives should be minimal.
   const safariPre15 = typeof createImageBitmap !== 'function'
@@ -567,6 +589,7 @@ const typesetOnMainThread = typesetInWorker.onMainThread
 function dumpSDFTextures() {
   Object.keys(atlases).forEach(size => {
     const canvas = atlases[size].sdfCanvas
+    if (!canvas) return
     const {width, height} = canvas
     console.log("%c.", `
       background: url(${canvas.toDataURL()});

@@ -1,6 +1,6 @@
 {
   "name": "troika-three-text",
-  "version": "0.53.0-higharc.0",
+  "version": "0.53.0-higharc.1",
   "description": "SDF-based text rendering for Three.js",
   "author": "Jason Johnston <jason.johnston@protectwise.com>",
   "repository": {
@@ -41,7 +41,7 @@
     "node-fetch": "^2.6.0"
   },
   "scripts": {
-    "test:higharc": "node --test test/higharc.test.mjs",
+    "test:higharc": "node --test test/higharc.test.mjs test/cpu-atlas.test.mjs",
     "build-typr": "rollup -c rollup.config.build-typr.js",
     "build-woff2otf": "rollup -c rollup.config.build-woff2otf.js",
     "build-unicode-font-resolver": "rollup -c rollup.config.build-unicode-font-resolver.js"
