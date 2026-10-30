@@ -156,12 +156,7 @@ const troikaGetFragDistValue = () => {
   const distance = troikaGlyphUvToDistance(clampedGlyphUV);
  
   // Extrapolate distance when outside bounds:
-  distance.addAssign(
-    select(
-      clampedGlyphUV.equal(vTroikaGlyphUV),
-      0.0, 
-      length(sub(vTroikaGlyphUV, clampedGlyphUV).mul(vTroikaGlyphDimensions))
-    ));
+  distance.addAssign(length(sub(vTroikaGlyphUV, clampedGlyphUV).mul(vTroikaGlyphDimensions)));
 
   /* 
   // TODO more refined extrapolated distance by adjusting for angle of gradient at edge...
