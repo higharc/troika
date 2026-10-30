@@ -1,7 +1,7 @@
 import { Color, Vector2, Vector4, Matrix3, Texture } from 'three'
 import { materialReference, vec3, vec4, Fn, If, select, max, mix, smoothstep, materialColor,
   length, fwidth, mul, clamp, div, add, sub, attribute, positionLocal, vec2,
-  mod, pow, Discard, normalLocal, sin, cos
+  mod, pow, Discard, normalLocal, sin, cos, int
 } from "three/tsl";
 
 
@@ -80,14 +80,16 @@ const vTroikaGlyphDimensions = vec2(bounds.z.sub(bounds.x), bounds.w.sub(bounds.
   vertex shader, rather than in the fragment shader, as the latter gives strange artifacts
   on some glyphs (those in the leftmost texture column) on some systems. The exact reason
   isn't understood but doing this here, then mix()-ing in the fragment shader, seems to work. */
-const txCols = uTroikaSDFTextureSize.x.div(uTroikaSDFGlyphSize).toVar("txCols");
+// Atlas cells and RGBA channels use integer division, including with TSL's mixed-type promotion.
+const txCols = int(uTroikaSDFTextureSize.x.div(uTroikaSDFGlyphSize)).toVar("txCols");
+const txCell = aTroikaGlyphIndex.div(int(4));
 const txUvPerSquare = uTroikaSDFGlyphSize.div(uTroikaSDFTextureSize).toVar("txUvPerSquare");
 const txStartUV = txUvPerSquare.mul(vec2(
-  mod(aTroikaGlyphIndex.div(4.0), txCols),
-  aTroikaGlyphIndex.div(4.0).div(txCols)
+  mod(txCell, txCols),
+  txCell.div(txCols)
 )).toVar("txStartUV");
 const vTroikaTextureUVBounds = vec4(txStartUV, vec2(txStartUV).add(txUvPerSquare)).toVarying("vTroikaTextureUVBounds");
-const vTroikaTextureChannel = mod(aTroikaGlyphIndex, 4.0).toVarying("vTroikaTextureChannel");
+const vTroikaTextureChannel = mod(aTroikaGlyphIndex, int(4)).toVarying("vTroikaTextureChannel");
 
 
 const troikaSdfValueToSignedDistance = (alpha) => {
@@ -313,4 +315,3 @@ export function createTextDerivedNodeMaterial(baseMaterial) {
 
   return textMaterial
 }
-
